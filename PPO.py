@@ -8,7 +8,7 @@ print("=========================================================================
 # set device to cpu or cuda
 device = torch.device('cpu')
 if(torch.cuda.is_available()): 
-    device = torch.device('cuda:0') 
+    device = torch.device('cuda:1') 
     torch.cuda.empty_cache()
     print("Device set to : " + str(torch.cuda.get_device_name(device)))
 else:
@@ -230,14 +230,13 @@ class PPO:
             state_values = torch.squeeze(state_values)
             
             # Finding the ratio (pi_theta / pi_theta__old)
-            ratios = torch.exp(logprobs - old_logprobs.detach())
+            #ratios = torch.exp(logprobs - old_logprobs.detach())
 
             # Finding Surrogate Loss  
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1-self.eps_clip, 1+self.eps_clip) * advantages
-
+            surr1 = logprobs * advantages.detach()
+            surr2 = (torch.clamp((logprobs-old_logprobs).exp(), 1-self.eps_clip, 1+self.eps_clip)* old_logprobs.exp()).log()* advantages.detach()
             # final loss of clipped objective PPO
-            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards) - 0.01 * dist_entropy
+            loss = -torch.min(surr1, surr2) + 0.5 * self.MseLoss(state_values, rewards)
             
             # take gradient step
             self.optimizer.zero_grad()
